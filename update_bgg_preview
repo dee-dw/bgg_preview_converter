@@ -1,0 +1,695 @@
+#!/usr/bin/tclsh
+
+set version 2017.01  ;# Spiel17 condensed version
+
+# puts "Args: $argc $argv"
+
+if { $argc < 1 } {
+    puts "Error: No files given as arguments!"
+    puts "Expected: [file nativename $argv0] \[datei.csv\] codensed_view.html > datei.csv"
+    exit 1
+}
+
+# search "old" csv file (as base) and new html files
+set csvfile ""
+set htmlfile ""
+foreach argument $argv {
+    if { [regexp {.csv$} $argument] } {
+        if { [string compare $csvfile ""] == 0 } {
+            set csvfile $argument
+        } else {
+            puts "Error: Second csv file given!"
+            exit 1
+        }
+    } elseif { [regexp {.html$} $argument] } {
+        if { [string compare $htmlfile ""] == 0 } {
+            set htmlfile $argument
+        } else {
+            puts "Error: Second html file given!"
+            exit 1
+        }
+    } elseif { [string compare $argument ""] != 0 } {
+        puts "Error: Unknown file: $argument"
+        exit 1
+    }
+}
+
+#puts "HTML: $htmlfile"
+#puts "CSV: $csvfile"
+
+# -----------------------------------------------
+
+# convert each html file so that it can be parsed easier
+set date [clock format [clock seconds] -format "%y%m%d"]
+set newfilename "bgg_spiel17_$date.html"
+set infile [open $htmlfile r]
+set outfile [open $newfilename w]
+while { [gets $infile line] >= 0 } {
+    regsub -all {(<a[^>]*>)\s*([^\t]*)\s*(</a>)} $line {\1\2\3} line
+    regsub -all {(<strong[^>]*class="c-green-600">)\s*([^\t]*)\s*(</strong>)} $line {\1\2\3} line
+    regsub -all {(<span ng-if="item.pretty_availability_status">)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line
+    regsub -all {(<button ng-if="ctrl.userinfo.priority[^>]*>)\s*([^\t]*)\s*} $line {\1\2} line ;#"
+    regsub -all {(<div class="col-xs-2">)\s*([^\t]*)\s*(</div>)} $line {\1\2\3} line
+    regsub -all {(<span ng-if="\:\:item\.geekitem\.item[^"]*">)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line ;#"
+    regsub -all {<a ng-href="/boardgame/random" href="https\://boardgamegeek.com/boardgame/random">Random Game</a>} $line {} line
+    regsub -all "\t" $line "\n" line
+    puts $outfile $line
+}
+close $outfile
+close $infile
+set htmlfile $newfilename
+
+#puts "HTML: $htmlfile"
+
+# -----------------------------------------------
+
+proc readCsvEntry { line } {
+    global g_csvVersion
+    global g_boothList
+    global g_publisherList
+    global g_gameList
+    global g_playersList
+    global g_durationList
+    global g_languageList
+    global g_priceList
+    global g_prioList
+    global g_remarkList
+    global g_bggLinkList
+    global g_inCsvOnly
+
+    if { $g_csvVersion >= 2017.01 && $g_csvVersion < 2017.10 } {
+        # v2017.0X
+        # puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
+        if { [regexp {^([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)$} $line all booth publisher game players duration language price prio remarks bgglink ] } {
+            set publisher [convertToSameFormat [string trim $publisher {"}]] ;#"
+            set game [convertToSameFormat [string trim $game {"}]] ;#"
+            set entry [createEntry $publisher $game]
+            set g_boothList($entry)     [string trim $booth {"}] ;#"
+            set g_publisherList($entry) [string trim $publisher {"}] ;#"
+            set g_gameList($entry)      [string trim $game {"}] ;#"
+            set g_playersList($entry)   [string trim $players {"}] ;#"
+            set g_durationList($entry)  [string trim $duration {"}] ;#"
+            set g_languageList($entry)  [split [string trim $language {"}] {/}] ;#"
+            set g_priceList($entry)     [string trim $price {"}] ;#"
+            set g_prioList($entry)      [string trim $prio {"}] ;#"
+            set g_remarkList($entry)    [string trim $remarks {"}] ;#"
+            set g_bggLinkList($entry)   [string trim $bgglink {"}] ;#"
+            set g_inCsvOnly($entry)     1
+            if { [string first $g_remarkList($entry) "BGG"] >= 0 } {
+                # entries with BGG as comment are manually added
+                set g_inCsvOnly($entry)     0
+            }
+        } else {
+            error "Wrong CSV line: $line"
+        }
+    } else {
+        error "readCsvEntry Unknown version: $g_csvVersion"
+    }
+}
+
+proc checkCsvVersion { file } {
+    global g_csvVersion
+    gets $file line
+    regexp {^"?v([^",]*)} $line all g_csvVersion
+    # puts "Version: $g_csvVersion"
+    gets $file line
+    if { $g_csvVersion >= 2017.01 && $g_csvVersion < 2017.10 } {
+        # v2017.0X
+        # puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
+        regsub -all {"} $line {} line  ;#"
+        if { [string compare $line {Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG}] != 0 } {
+            error "CSV-format does not match version $g_csvVersion: $line"
+        }
+    } else {
+        error "checkCsvVersion Unknown version: $g_csvVersion"
+    }
+}
+
+proc readCsv { filename } {
+    global g_csvVersion
+    set file [open $filename r]
+    checkCsvVersion $file
+    while { [gets $file line] >= 0 } {
+        readCsvEntry $line
+    }
+}
+
+# -----------------------------------------------
+
+proc convertUnicode { line } {
+    regsub -all {,} $line {} line
+    regsub -all {&amp;} $line {\&} line
+    regsub -all {ä} $line {ae} line
+    regsub -all {ä} $line {ae} line
+    regsub -all {à} $line {a} line
+    regsub -all {á} $line {a} line
+    regsub -all {Ä} $line {Ae} line
+    regsub -all {é} $line {e} line
+    regsub -all {è} $line {e} line
+    regsub -all {ê} $line {e} line
+    regsub -all {È} $line {E} line
+    regsub -all {É} $line {E} line
+    regsub -all {í} $line {i} line
+    regsub -all {ì} $line {i} line
+    regsub -all {í} $line {i} line
+    regsub -all {ï} $line {i} line
+    regsub -all {Í} $line {I} line
+    regsub -all {ö} $line {oe} line
+    regsub -all {ø} $line {o} line
+    regsub -all {ó} $line {o} line
+    regsub -all {ó} $line {o} line
+    regsub -all {ô} $line {o} line
+    regsub -all {Ö} $line {Oe} line
+    regsub -all {Ō} $line {O} line
+    regsub -all {ñ} $line {n} line
+    regsub -all {ü} $line {ue} line
+    regsub -all {ú} $line {u} line
+    regsub -all {Ü} $line {Ue} line
+    regsub -all {ß} $line {ss} line
+    regsub -all {&nbsp;} $line { } line
+    regsub -all {−} $line {-} line
+    regsub -all {&minus;} $line {-} line
+    regsub -all {&#039;} $line {} line
+    regsub -all {\?\?\?} $line {Fragezeichen} line
+    regsub -all {\?} $line {} line
+    regsub -all {–} $line {-} line
+    regsub -all {´} $line {'} line
+    regsub -all {’} $line {'} line
+    regsub -all {\t+} $line {} line
+    regsub -all {½} $line { 1/2} line
+    regsub -all {¡} $line {!} line
+    regsub -all {­} $line {} line
+    return $line
+}
+
+proc createEntry { publisher game } {
+    set entry "$publisher,$game"
+    # regsub -all {,} $entry {} entry
+    regsub -all {\.} $entry {} entry
+    regsub -all {!} $entry {} entry
+    regsub -all {\?} $entry {} entry
+    regsub -all {:} $entry {} entry
+    regsub -all {'} $entry {} entry
+    regsub -all {\-} $entry {} entry
+    regsub -all { } $entry {} entry
+    regsub -all {\(} $entry {} entry
+    regsub -all {\)} $entry {} entry
+    regsub -all {/} $entry {} entry
+    regsub -all {­­­} $entry {} entry
+    regsub -all {\+} $entry {} entry
+    regsub -all {\+} $entry {} entry
+    regsub {^[0-9]*} $entry {} entry
+    return $entry
+}
+
+proc storeAsNewGame { entry } {
+    global g_boothList
+    global g_publisherList
+    global g_gameList
+    global g_playersList
+    global g_durationList
+    global g_languageList
+    global g_priceList
+    global g_prioList
+    global g_remarkList
+    global g_bggLinkList
+    global g_inCsvOnly
+
+    global g_publisher
+    global g_booth
+    global g_game
+    global g_players
+    global g_playtime
+    global g_price
+    global g_prio
+    global g_bgglink
+    global g_language
+
+    set g_publisherList($entry) $g_publisher
+    set g_boothList($entry) $g_booth
+    set g_gameList($entry) $g_game
+    set g_playersList($entry) $g_players
+    set g_durationList($entry) $g_playtime
+    set g_languageList($entry) $g_language
+    set g_priceList($entry) $g_price
+    set g_prioList($entry) $g_prio
+    set g_remarkList($entry) {}
+    set g_bggLinkList($entry) $g_bgglink
+    set g_inCsvOnly($entry) 0
+
+    unset g_game
+    unset g_players
+    unset g_playtime
+    unset g_language
+    unset g_price
+    unset g_prio
+    unset g_bgglink
+}
+
+proc storeNumPlayers { entry } {
+    global g_playersList
+    global g_players
+    if { [string length $g_players] > 0 } {
+        if { [string compare $g_playersList($entry) $g_players] != 0 } {
+            if { [string length $g_playersList($entry)] == 0 } {
+                set g_playersList($entry) $g_players
+            } else {
+                # puts "> $g_playersList($entry) -> $g_players $entry"
+                set g_playersList($entry) $g_players
+            }
+        } ;# else identical
+    } ;# else nothing set
+    unset g_players
+}
+
+proc storePlaytime { entry } {
+    global g_durationList
+    global g_playtime
+    if { [string length $g_playtime] > 0 } {
+        if { [string compare $g_durationList($entry) $g_playtime] != 0 } {
+            if { [string length $g_durationList($entry)] == 0 } {
+                set g_playersList($entry) $g_playtime
+            } else {
+                # puts "> $g_durationList($entry) -> $g_playtime $entry"
+                set g_durationList($entry) $g_playtime
+            }
+        } ;# else identical
+    } ;# else nothing set
+    unset g_playtime
+}
+
+proc storeLanguage { entry } {
+    global g_languageList
+    global g_language
+    if { [llength $g_language] > 0 } {
+        # we only add new languages
+        foreach lang $g_language {
+            if { [lsearch $lang $g_languageList($entry)] == -1 } {
+                lappend $lang $g_languageList($entry)
+            } ;# else language already stored
+        }
+    } ;# else nothing set
+
+    # Language from spielbox depends on publisher
+    unset g_language
+}
+
+proc storePrice { entry } {
+    global g_priceList
+    global g_price
+    if { [string length $g_price] > 0 } {
+        if { [string compare $g_priceList($entry) $g_price] != 0 } {
+            if { [string length $g_priceList($entry)] == 0 } {
+                set g_priceList($entry) $g_price
+            } else {
+                # puts "> $g_priceList($entry) -> $g_price $entry"
+                set g_priceList($entry) $g_price
+            }
+        } ;# else identical
+    } ;# else nothing set
+    unset g_price
+}
+
+proc storeBooth { entry } {
+    global g_boothList
+    global g_booth
+    if { [info exists g_booth] && [string length $g_booth] > 0 } {
+        if { [string compare $g_boothList($entry) $g_booth] != 0 } {
+            if { [string length $g_boothList($entry)] == 0 } {
+                set g_boothList($entry) $g_booth
+            } else {
+                # puts "> $g_boothList($entry) -> $g_booth $entry"
+                set g_boothList($entry) $g_booth
+            }
+        } ;# else identical
+    } ;# else nothing set
+    # do not unset booth because it is not repeated
+}
+
+proc storeBggLink { entry } {
+    global g_bggLinkList
+    global g_bgglink
+    if { [string length $g_bgglink] > 0 } {
+        set g_bggLinkList($entry) $g_bgglink
+    } ;# else nothing set
+    unset g_bgglink
+}
+
+proc storePrio { entry } {
+    global g_prioList
+    global g_prio
+    if { [string length $g_prio] > 0 } {
+        if { [string compare $g_prioList($entry) $g_prio] != 0 } {
+            if { [string length $g_prioList($entry)] == 0 } {
+                set g_prioList($entry) $g_prio
+            } else {
+                # Wir ueberschreiben den Status nur, wenn nicht eine Priozahl
+                # manuell eingegeben wurde.
+                if { ![string is integer $g_prioList($entry)] } {
+                    # puts "> $g_prioList($entry) -> $g_prio $entry"
+                    set g_prioList($entry) $g_prio
+                }
+            }
+        } ;# else identical
+    } ;# else nothing set
+    unset g_prio
+}
+
+proc storeAsSingleGame { entry } {
+    global g_inCsvOnly
+    set g_inCsvOnly($entry)      0
+
+    # Publisher nicht loeschen, da der nicht wiederholt wird!
+    global g_publisherList
+    global g_publisher
+    set g_publisherList($entry) $g_publisher
+
+    global g_gameList
+    global g_game
+    set g_gameList($entry) $g_game
+    unset g_game
+
+    storeNumPlayers $entry
+    storePlaytime $entry
+    storeLanguage $entry
+    storePrice $entry
+    storeBooth $entry
+    storePrio $entry
+    storeBggLink $entry
+}
+
+proc storeGame { } {
+    global g_gameList
+    global g_publisher
+    global g_game
+    global g_counter
+    global g_remarkList
+
+    if { [info exists g_publisher] && [info exists g_game] } {
+        set entry [createEntry $g_publisher $g_game]
+        incr g_counter
+        # puts "> $g_counter $entry"
+        if { ![info exists g_gameList($entry)] } {
+            storeAsNewGame $entry
+        } else {
+            storeAsSingleGame $entry
+        }
+    } elseif { [info exists g_game] } {
+        error "Game exists, but not publisher: $g_game"
+    } elseif { [info exists g_publisher] } {
+        # No error, it's normal that at the end of the list the publisher
+        # is still set because it is not reset
+        # error "Publisher exists, but not game: $g_publisher"
+        unset g_publisher
+    }
+}
+
+proc convertToSameFormat { line } {
+    
+    # Publisher
+    regsub {Abacusspiele} $line {ABACUSSPIELE} line
+    regsub {Abbagames} $line {ABBA Games} line
+    regsub {ADC Blackfire Entertainment GmbH} $line {ADC Blackfire} line
+    regsub {A-games \(Board Game Publisher\)} $line {A-games} line
+    regsub {A-games \(Board Game\)} $line {A-games} line
+    regsub {aoimachi \(青い街\)} $line {aoimachi} line
+    regsub {^Alderac Entertainment Group \(AEG\)$} $line {AEG} line
+    regsub {^Alea$} $line {alea} line
+    regsub {AMIGO Spiel \+ Freizeit GmbH} $line {AMIGO} line
+    regsub {Amigo Spiel \+ Freizeit GmbH} $line {AMIGO} line
+    regsub {analog lunchbox \(アナログランチボックス\)} $line {analog lunchbox} line
+    regsub {Apauling games} $line {apauling games} line
+    regsub {^Asmodee$} $line {Asmodee Deutschland} line
+    regsub {Backspindle Games Ltd.} $line {Backspindle Games} line
+    regsub {Bezier Games Inc.} $line {Bezier Games} line
+    regsub {^Big Fun Games \(Board Game\)$} $line {Big Fun Games} line
+    regsub {^Blue Cocker$} $line {Blue Cocker Games} line
+    regsub {Blam!} $line {BLAM !} line
+    regsub {Blue Orange \(EU\)} $line {Blue Orange Games} line
+    regsub {Board \& Dice} $line {Board\&Dice} line
+    regsub {BOARD TO DEATH} $line {Board to Death} line
+    regsub {Bushiroad South East Asia Pte. Ltd.} $line {Bushiroad} line
+    regsub {Eigenverlag} $line {Self-Published} line
+    regsub {Franjos Spieleverlag} $line {franjos Spieleverlag} line
+    regsub {FunForge} $line {Funforge} line
+    regsub {GALLERY OUCHI \(ギャラリーおうち\)} $line {GALLERY OUCHI} line
+    regsub {Gigamic International Games} $line {Gigamic} line
+    regsub {Haba-Habermaass GmbH} $line {HABA} line
+    regsub {HABA - Habermaass GmbH} $line {HABA} line
+    regsub {Hans im Glueck Verlags-GmbH} $line {Hans im Glueck} line
+    regsub {Hans im Glueck Verlag} $line {Hans im Glueck} line
+    regsub {Hoplay} $line {HoPLAY} line
+    regsub {Huch! \& friends} $line {HUCH! \& friends} line
+    regsub {Iello} $line {IELLO} line
+    regsub {壬辰 \(Imjin Creative\)} $line {Imjin Creative} line
+    regsub {Inside the Box Board Games LLP \(ITB\)} $line {Inside the Box} line
+    regsub {JaponBrand} $line {Japon Brand} line
+    regsub {JUGAME STUDIO \(ジュゲムスタジオ\)} $line {JUGAME STUDIO} line
+    regsub {Kakinotane Firm \(柿の種商会\)} $line {Kakinotane Firm} line
+    regsub {Korea Boardgames co. Ltd.} $line {Korea Boardgames} line
+    regsub {^Kosmos$} $line {KOSMOS} line
+    regsub {^Lautapelit$} $line {Lautapelit.fi} line
+    regsub {Lifestyle Boardgames Ltd} $line {Lifestyle Boardgames} line
+    regsub {Logis} $line {LOGIS} line
+    regsub {Mage Company} $line {MAGE Company} line
+    regsub {Massif Games LLC} $line {Massif Games} line
+    regsub {Mayfair Games Inc.} $line {Mayfair Games} line
+    regsub {^Morning$} $line {Morning Players} line
+    regsub {Morning Players S.A.S.} $line {Morning Players} line
+    regsub {moses. Verlag GmbH} $line {moses Verlag}
+    regsub {Mueller-Maetzig Spiele Verlag} $line {Mueller-Maetzig Spiele} line
+    regsub {新ボードゲーム党 \(New Board Game Party\)} $line {New Board Game Party} line
+    regsub {nikamundus Vertriebs GmbH} $line {nikamundus} line
+    regsub {nikamundus Verlag} $line {nikamundus} line
+    regsub {NSKN Legendary Games \(NSKN Games\)} $line {NSKN Games} line
+    regsub {Oesterreichisches Spiele Museum e.V.} $line {Oesterreichisches Spiele Museum} line
+    regsub {Ostia Spiele} $line {OSTIA Spiele} line
+    regsub {Phalanx} $line {PHALANX} line
+    regsub {Play With Us Design \(玩聚設計\)} $line {Play With Us Design} line
+    regsub {Plenluno \(プレンルーノ\)} $line {Plenluno} line
+    regsub {^Poltergeist$} $line {Poltergeist Spiele} line
+    regsub {Ravensburger Spieleverlag GmbH} $line {Ravensburger Spieleverlag} line
+    regsub {REDIMP GAMES} $line {RedImp Games} line
+    regsub {Rolling Green Leaves Studio \(滾動綠葉文創工作室\)} $line {Rolling Green Leaves Studio} line
+    regsub {Schmidt Spiele GmbH} $line {Schmidt Spiele} line
+    regsub {\(Self-Published\)} $line {Self-Published} line
+    regsub {しのうじょう \(Shinojo\)} $line {Shinojo} line
+    regsub {Sit down} $line {Sit Down!} line
+    regsub {Spieltrieb GbR} $line {Spieltrieb} line
+    regsub {ばねゲー部\(仮\) \(Spring Games Club\.temp\)} $line {Spring Games Club} line
+    regsub {Surprised Stare Games Ltd} $line {Surprised Stare Games} line
+    regsub {The Game Master BV} $line {The Game Master} line
+    regsub {2Plus Games} $line {TwoPlus Games} line
+    regsub {Tiki Editions Inc.} $line {TIKI Editions Inc.} line
+    regsub {トーホクウィステリア \(Tohoku Wisteria\)} $line {Tohoku Wisteria} line
+    regsub {Truant Verlag} $line {Truant Spiele} line
+    regsub {Whats Your Game} $line {What's Your Game} line
+    regsub {^WizKids$} $line {WizKids Games} line
+    regsub {Yay! Games} $line {YAY Games} line
+
+    # Spiele
+    regsub {萬貓的慶典} $line {Festival of Thousand Cats} line
+    regsub {Captain Dice \(キャプテンダイス\)} $line {Captain Dice} line
+    regsub {TA‐KE} $line {TA-KE} line
+    regsub {HATSUDEN \(ハツデン\）} $line {HATSUDEN} line
+    regsub {Ponkotsu Factory \(ぽんこつファクトリー\)} $line {Ponkotsu Factory} line
+    regsub {侍鳥 \(Samurai Dori\)} $line {Samurai Dori} line
+    return $line
+}
+
+proc checkPublisherBGG { line } {
+    global g_publisher
+    global g_booth
+    global g_publisherJustSet
+
+    if { [regexp {<a ng-href=./boardgamepublisher/[^>]*>([^<]*)</a>} $line all publisher] } {
+        set publisher [string trim $publisher]
+        set publisher [convertUnicode $publisher]
+        set publisher [convertToSameFormat $publisher]
+        # puts "> $publisher"
+        
+        # Save previous stored game!
+        storeGame
+        
+        set g_publisher $publisher
+        set g_publisherJustSet 1
+        if { ![string is ascii $g_publisher] } {
+            error "Publisher name not in ascii: $g_publisher"
+        }
+        # Clear Booth number if none is given for this publisher
+        set g_booth {}
+    }
+    if { [info exists g_publisher] &&
+         [string compare $g_publisher "Self-Published"] == 0 } {
+        # Clear Booth number if self published because it should be listed under
+        # the game not the "publisher".
+        set g_booth {}
+    }
+}
+
+proc checkBoothBGG { line } {
+    global g_booth
+    if { [regexp {<span ng-if="parentitem.location">Location: Hall ([0-9]+): ([A-Z0-9]+)</span>} $line all hall number] } {
+        set booth [string trim "$hall-$number"]
+        if { [string compare $g_booth ""] == 0 } {
+            set g_booth $booth
+            # puts "> $g_booth"
+        } elseif { [string compare $g_booth $booth] != 0 } {
+            # Already a booth set. This should not happen.
+            error "Second booth set: $g_booth -> $booth"
+        }
+    }
+}
+
+proc checkGameTitleBGG { line } {
+    global g_game
+    global g_bgglink
+    global g_price
+    global g_prio
+    global g_players
+    global g_playtime
+    global g_language
+    global g_publisherJustSet
+
+    if { [regexp {<a ng-href="/boardgame/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ||
+        [regexp {<a ng-href="/boardgameexpansion/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] } {
+        set game [string trim $game]
+        set game [convertUnicode $game]
+        set game [convertToSameFormat $game]
+
+        # Save previous stored game!
+        if { !$g_publisherJustSet } {
+            storeGame
+        }
+        set g_publisherJustSet 0
+
+        set g_game $game
+        if { ![string is ascii $g_game] } {
+            error "Game name not in ascii: $g_game"
+        }
+        #puts "> $g_game"
+        if { [string first "https://boardgamegeek.com" $link] == 0 } {
+            set g_bgglink "$link"
+        } else {
+            set g_bgglink "https://boardgamegeek.com$link"
+        }
+        # puts "> $g_bgglink"
+        
+        set g_players {}
+        set g_playtime {}
+        set g_language {}
+        set g_price {}
+        set g_prio {}
+    }
+}
+
+proc checkPriceBGG { line } {
+    global g_price
+
+    if { [regexp {<span ng-if="item.pretty_availability_status">([^<]*)</span>} $line all price] } {
+        set g_price [string trim $price]
+    }
+    if { [regexp {<strong ng-if=.item.msrp.*>([^<]*)</strong>} $line all price] } {
+        set g_price [string trim $price]
+        set g_price [convertUnicode $g_price]
+        # Euro as default, otherwise Dollar or Pound
+        #regsub {EUR } $g_price {} g_price
+        # ignore 00 cent
+        #regsub {\.00$} $g_price {} g_price
+    }
+}
+
+proc checkPriorityBGG { line } {
+    global g_prio
+    if { [regexp {<button ng-if=.ctrl.userinfo.priority[^>]*>([^<]*)<} $line all prio] } {
+        set prio [string trim $prio]
+        if { [string compare "Remove Priority" $prio] != 0 } {
+            set g_prio $prio
+        }
+    }
+}
+
+proc readHtmlBGG { filename } {
+    # Syntax:
+    # <a.*href="https://boardgamegeek.com/boardgamepublisher/.*">Some Name</a> 
+    # <span ng-if="parentitem.location">Location: Hall 7: K120</span>
+    # <a.*href="https://boardgamegeek.com/boardgame/.*">Some Name</a>
+    # <div class="col-xs-2">Hall 3: E114 </div>
+    # <span ng-if="item.pretty_availability_status">For Sale</span>
+    # <strong ng-if="item.msrp.*>Price</strong>
+    # <button ng-if="ctrl.userinfo.priority.*>Status<
+
+    set file [open $filename r]
+    while { [gets $file line] >= 0 } {
+        checkPublisherBGG $line
+        checkBoothBGG $line
+        checkGameTitleBGG $line
+        checkPriceBGG $line
+        checkPriorityBGG $line
+    }
+    close $file
+}
+
+# -----------------------------------------------
+
+proc printEntries { } {
+    global g_boothList
+    global g_publisherList
+    global g_gameList
+    global g_playersList
+    global g_durationList
+    global g_languageList
+    global g_priceList
+    global g_prioList
+    global g_remarkList
+    global g_bggLinkList
+    global g_inCsvOnly
+    global version
+
+    puts "v$version,,,,,,,,,,,,,"
+    puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
+
+    foreach entry [lsort -nocase -ascii [array names g_gameList]] {
+        puts -nonewline $g_boothList($entry)
+        puts -nonewline ","
+        puts -nonewline $g_publisherList($entry)
+        puts -nonewline ","
+        puts -nonewline $g_gameList($entry)
+        puts -nonewline ","
+        puts -nonewline $g_playersList($entry)
+        puts -nonewline ","
+        puts -nonewline $g_durationList($entry)
+        puts -nonewline ","
+        puts -nonewline [join [lsort $g_languageList($entry)] {/}]
+        puts -nonewline ","
+        puts -nonewline $g_priceList($entry)
+        puts -nonewline ","
+        if { $g_inCsvOnly($entry) } {
+            # entry is only in csv and not in bgg list
+            # mark it as deleted
+            puts -nonewline "Deleted"
+        } else {
+            puts -nonewline $g_prioList($entry)
+        }
+        puts -nonewline ","
+        puts -nonewline $g_remarkList($entry)
+        puts -nonewline ","
+        puts -nonewline $g_bggLinkList($entry)
+        puts ""
+    }
+}
+
+# -----------------------------------------------
+
+# read "old" csv data (as base)
+if { [string compare $csvfile ""] } {
+    readCsv $csvfile
+}
+
+# add new information from html file
+readHtmlBGG $htmlfile
+# Save last stored game!
+storeGame
+
+# print all entries as csv
+printEntries
