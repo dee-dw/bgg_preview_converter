@@ -1,6 +1,7 @@
 #!/usr/bin/tclsh
 
 set version 2017.01  ;# Spiel17 condensed version
+set version 2017.02  ;# Bugfix: ignore random game link on bgg site
 
 # puts "Args: $argc $argv"
 
@@ -51,7 +52,7 @@ while { [gets $infile line] >= 0 } {
     regsub -all {(<button ng-if="ctrl.userinfo.priority[^>]*>)\s*([^\t]*)\s*} $line {\1\2} line ;#"
     regsub -all {(<div class="col-xs-2">)\s*([^\t]*)\s*(</div>)} $line {\1\2\3} line
     regsub -all {(<span ng-if="\:\:item\.geekitem\.item[^"]*">)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line ;#"
-    regsub -all {<a ng-href="/boardgame/random" href="https\://boardgamegeek.com/boardgame/random">Random Game</a>} $line {} line
+    # regsub -all {<a ng-href="/boardgame/random" href="https\://boardgamegeek.com/boardgame/random">Random Game</a>} $line {} line
     regsub -all "\t" $line "\n" line
     puts $outfile $line
 }
@@ -551,8 +552,9 @@ proc checkGameTitleBGG { line } {
     global g_language
     global g_publisherJustSet
 
-    if { [regexp {<a ng-href="/boardgame/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ||
-        [regexp {<a ng-href="/boardgameexpansion/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] } {
+    if { ( [regexp {<a ng-href="/boardgame/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ||
+           [regexp {<a ng-href="/boardgameexpansion/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ) &&
+          ![regexp {<a ng-href="/boardgame/random" href="([^"]*)" *>([^<]*)</a>} $line] } { ;#"
         set game [string trim $game]
         set game [convertUnicode $game]
         set game [convertToSameFormat $game]
