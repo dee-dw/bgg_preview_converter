@@ -3,6 +3,7 @@
 set version 2017.01  ;# Spiel17 condensed version
 set version 2017.02  ;# Bugfix: ignore random game link on bgg site
 set version 2017.03  ;# Bugfix: ignore ° (thanks to Knut)
+set version 2017.04  ;# Bugfix: ignore all games before "geekpreview-header-cta"
 
 # puts "Args: $argc $argv"
 
@@ -53,7 +54,7 @@ while { [gets $infile line] >= 0 } {
     regsub -all {(<button ng-if="ctrl.userinfo.priority[^>]*>)\s*([^\t]*)\s*} $line {\1\2} line ;#"
     regsub -all {(<div class="col-xs-2">)\s*([^\t]*)\s*(</div>)} $line {\1\2\3} line
     regsub -all {(<span ng-if="\:\:item\.geekitem\.item[^"]*">)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line ;#"
-    # regsub -all {<a ng-href="/boardgame/random" href="https\://boardgamegeek.com/boardgame/random">Random Game</a>} $line {} line
+    regsub -all {(Expansion for: )\t*} $line {\1} line
     regsub -all "\t" $line "\n" line
     puts $outfile $line
 }
@@ -555,8 +556,7 @@ proc checkGameTitleBGG { line } {
     global g_publisherJustSet
 
     if { ( [regexp {<a ng-href="/boardgame/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ||
-           [regexp {<a ng-href="/boardgameexpansion/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ) &&
-          ![regexp {<a ng-href="/boardgame/random" href="([^"]*)" *>([^<]*)</a>} $line] } { ;#"
+           [regexp {<a ng-href="/boardgameexpansion/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ) } {
         set game [string trim $game]
         set game [convertUnicode $game]
         set game [convertToSameFormat $game]
@@ -571,7 +571,7 @@ proc checkGameTitleBGG { line } {
         if { ![string is ascii $g_game] } {
             error "Game name not in ascii: $g_game"
         }
-        #puts "> $g_game"
+        # puts "> $g_game"
         if { [string first "https://boardgamegeek.com" $link] == 0 } {
             set g_bgglink "$link"
         } else {
@@ -623,13 +623,20 @@ proc readHtmlBGG { filename } {
     # <strong ng-if="item.msrp.*>Price</strong>
     # <button ng-if="ctrl.userinfo.priority.*>Status<
 
+    set gameListStarted 0
     set file [open $filename r]
     while { [gets $file line] >= 0 } {
-        checkPublisherBGG $line
-        checkBoothBGG $line
-        checkGameTitleBGG $line
-        checkPriceBGG $line
-        checkPriorityBGG $line
+        # puts $line
+        if { [regexp {<div class="geekpreview-header-cta">} $line] } {
+            set gameListStarted 1
+        }
+        if { $gameListStarted } {
+            checkPublisherBGG $line
+            checkBoothBGG $line
+            checkGameTitleBGG $line
+            checkPriceBGG $line
+            checkPriorityBGG $line
+        }
     }
     close $file
 }
