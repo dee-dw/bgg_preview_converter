@@ -2,6 +2,7 @@
 
 set version 2017.01  ;# Spiel17 condensed version
 set version 2017.02  ;# Bugfix: ignore random game link on bgg site
+set version 2017.03  ;# Bugfix: ignore ° (thanks to Knut)
 
 # puts "Args: $argc $argv"
 
@@ -179,6 +180,7 @@ proc convertUnicode { line } {
     regsub -all {\t+} $line {} line
     regsub -all {½} $line { 1/2} line
     regsub -all {¡} $line {!} line
+    regsub -all {°} $line {} line
     regsub -all {­} $line {} line
     return $line
 }
