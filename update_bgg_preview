@@ -4,6 +4,7 @@ set version 2017.01  ;# Spiel17 condensed version
 set version 2017.02  ;# Bugfix: ignore random game link on bgg site
 set version 2017.03  ;# Bugfix: ignore ° (thanks to Knut)
 set version 2017.04  ;# Bugfix: ignore all games before "geekpreview-header-cta"
+set version 2017.10  ;# add field for rating (not extracted from bgg yet)
 
 # puts "Args: $argc $argv"
 
@@ -71,6 +72,7 @@ proc readCsvEntry { line } {
     global g_boothList
     global g_publisherList
     global g_gameList
+    global g_ratingList
     global g_playersList
     global g_durationList
     global g_languageList
@@ -90,6 +92,33 @@ proc readCsvEntry { line } {
             set g_boothList($entry)     [string trim $booth {"}] ;#"
             set g_publisherList($entry) [string trim $publisher {"}] ;#"
             set g_gameList($entry)      [string trim $game {"}] ;#"
+            set g_ratingList($entry)    {}
+            set g_playersList($entry)   [string trim $players {"}] ;#"
+            set g_durationList($entry)  [string trim $duration {"}] ;#"
+            set g_languageList($entry)  [split [string trim $language {"}] {/}] ;#"
+            set g_priceList($entry)     [string trim $price {"}] ;#"
+            set g_prioList($entry)      [string trim $prio {"}] ;#"
+            set g_remarkList($entry)    [string trim $remarks {"}] ;#"
+            set g_bggLinkList($entry)   [string trim $bgglink {"}] ;#"
+            set g_inCsvOnly($entry)     1
+            if { [string first $g_remarkList($entry) "BGG"] >= 0 } {
+                # entries with BGG as comment are manually added
+                set g_inCsvOnly($entry)     0
+            }
+        } else {
+            error "Wrong CSV line: $line"
+        }
+    } elseif { $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 } {
+        # v2017.1X
+        # puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
+        if { [regexp {^([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)$} $line all booth publisher game rating players duration language price prio remarks bgglink ] } {
+            set publisher [convertToSameFormat [string trim $publisher {"}]] ;#"
+            set game [convertToSameFormat [string trim $game {"}]] ;#"
+            set entry [createEntry $publisher $game]
+            set g_boothList($entry)     [string trim $booth {"}] ;#"
+            set g_publisherList($entry) [string trim $publisher {"}] ;#"
+            set g_gameList($entry)      [string trim $game {"}] ;#"
+            set g_ratingList($entry)    [string trim $rating {"}] ;#"
             set g_playersList($entry)   [string trim $players {"}] ;#"
             set g_durationList($entry)  [string trim $duration {"}] ;#"
             set g_languageList($entry)  [split [string trim $language {"}] {/}] ;#"
@@ -121,6 +150,13 @@ proc checkCsvVersion { file } {
         # puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
         regsub -all {"} $line {} line  ;#"
         if { [string compare $line {Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG}] != 0 } {
+            error "CSV-format does not match version $g_csvVersion: $line"
+        }
+    } elseif { $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 } {
+        # v2017.0X
+        # puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
+        regsub -all {"} $line {} line  ;#"
+        if { [string compare $line {Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG}] != 0 } {
             error "CSV-format does not match version $g_csvVersion: $line"
         }
     } else {
@@ -210,6 +246,7 @@ proc storeAsNewGame { entry } {
     global g_boothList
     global g_publisherList
     global g_gameList
+    global g_ratingList
     global g_playersList
     global g_durationList
     global g_languageList
@@ -232,6 +269,7 @@ proc storeAsNewGame { entry } {
     set g_publisherList($entry) $g_publisher
     set g_boothList($entry) $g_booth
     set g_gameList($entry) $g_game
+    set g_ratingList($entry) {}
     set g_playersList($entry) $g_players
     set g_durationList($entry) $g_playtime
     set g_languageList($entry) $g_language
@@ -647,6 +685,7 @@ proc printEntries { } {
     global g_boothList
     global g_publisherList
     global g_gameList
+    global g_ratingList
     global g_playersList
     global g_durationList
     global g_languageList
@@ -658,7 +697,7 @@ proc printEntries { } {
     global version
 
     puts "v$version,,,,,,,,,,,,,"
-    puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
+    puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
 
     foreach entry [lsort -nocase -ascii [array names g_gameList]] {
         puts -nonewline $g_boothList($entry)
@@ -666,6 +705,8 @@ proc printEntries { } {
         puts -nonewline $g_publisherList($entry)
         puts -nonewline ","
         puts -nonewline $g_gameList($entry)
+        puts -nonewline ","
+        puts -nonewline $g_ratingList($entry)
         puts -nonewline ","
         puts -nonewline $g_playersList($entry)
         puts -nonewline ","
@@ -678,7 +719,7 @@ proc printEntries { } {
         if { $g_inCsvOnly($entry) } {
             # entry is only in csv and not in bgg list
             # mark it as deleted
-            puts -nonewline "Deleted"
+            puts -nonewline "Deleted: $g_prioList($entry)"
         } else {
             puts -nonewline $g_prioList($entry)
         }
