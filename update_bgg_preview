@@ -5,6 +5,7 @@ set version 2017.02  ;# Bugfix: ignore random game link on bgg site
 set version 2017.03  ;# Bugfix: ignore ° (thanks to Knut)
 set version 2017.04  ;# Bugfix: ignore all games before "geekpreview-header-cta"
 set version 2017.10  ;# add field for rating (not extracted from bgg yet)
+set version 2018.01  ;# extracted booth for Gencon 2018
 
 # puts "Args: $argc $argv"
 
@@ -108,8 +109,10 @@ proc readCsvEntry { line } {
         } else {
             error "Wrong CSV line: $line"
         }
-    } elseif { $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 } {
+    } elseif { ( $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 ) ||
+               ( $g_csvVersion >= 2018.01 && $g_csvVersion < 2018.10 ) } {
         # v2017.1X
+        # v2018.0X
         # puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
         if { [regexp {^([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)$} $line all booth publisher game rating players duration language price prio remarks bgglink ] } {
             set publisher [convertToSameFormat [string trim $publisher {"}]] ;#"
@@ -571,8 +574,14 @@ proc checkPublisherBGG { line } {
 
 proc checkBoothBGG { line } {
     global g_booth
-    if { [regexp {<span ng-if="parentitem.location">Location: Hall ([0-9]+): ([A-Z0-9]+)</span>} $line all hall number] } {
-        set booth [string trim "$hall-$number"]
+    if { [regexp {<span ng-if="parentitem.location">Location: Hall ([0-9]+): ([A-Z0-9]+)</span>} $line all hall number] ||
+    [regexp {<span ng-if="parentitem.location">Location: ([^<]*)</span>} $line all number] } {
+        if { [info exists hall] } {
+            set booth [string trim "$hall-$number"]
+        } else {
+            regsub {, *} $number {/} number
+            set booth [string trim $number]
+        }
         if { [string compare $g_booth ""] == 0 } {
             set g_booth $booth
             # puts "> $g_booth"
