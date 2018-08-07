@@ -6,7 +6,7 @@ TCL Converter from the BoardGameGeek condensed preview list to CSV
 1. Go to a BoardGameGeek preview list, e.g. https://boardgamegeek.com/geekpreview/4/spiel-17-preview
 2. Switch to "Condensed View", e.g. https://boardgamegeek.com/geekpreview/4/spiel-17-preview?viewstyle=condensed
 3. Scroll down and click "Show all"
-4. Save the page as html, e.g. as "bgg_codensed_view.html"
+4. Save the page as full html, e.g. as "bgg_codensed_view.html"
 5. Call "update_bgg_preview bgg_codensed_view.html > mylist.csv"
 6. Open the list in LibreOffice or OpenOffice and edit it if you like
 

@@ -6,6 +6,7 @@ set version 2017.03  ;# Bugfix: ignore ° (thanks to Knut)
 set version 2017.04  ;# Bugfix: ignore all games before "geekpreview-header-cta"
 set version 2017.10  ;# add field for rating (not extracted from bgg yet)
 set version 2018.01  ;# extracted booth for Gencon 2018
+set version 2018.02  ;# renamed temporary html file, added more unicode chars
 
 # puts "Args: $argc $argv"
 
@@ -46,7 +47,8 @@ foreach argument $argv {
 
 # convert each html file so that it can be parsed easier
 set date [clock format [clock seconds] -format "%y%m%d"]
-set newfilename "bgg_spiel17_$date.html"
+regsub {\.html$} $htmlfile "_$date.html" newfilename
+#puts "Read HTML:  $htmlfile / Write HTML: $newfilename"
 set infile [open $htmlfile r]
 set outfile [open $newfilename w]
 while { [gets $infile line] >= 0 } {
@@ -64,7 +66,6 @@ close $outfile
 close $infile
 set htmlfile $newfilename
 
-#puts "HTML: $htmlfile"
 
 # -----------------------------------------------
 
@@ -198,6 +199,7 @@ proc convertUnicode { line } {
     regsub -all {Í} $line {I} line
     regsub -all {ö} $line {oe} line
     regsub -all {ø} $line {o} line
+    regsub -all {ō} $line {o} line
     regsub -all {ó} $line {o} line
     regsub -all {ó} $line {o} line
     regsub -all {ô} $line {o} line
@@ -205,8 +207,10 @@ proc convertUnicode { line } {
     regsub -all {Ō} $line {O} line
     regsub -all {ñ} $line {n} line
     regsub -all {ü} $line {ue} line
+    regsub -all {ù} $line {u} line
     regsub -all {ú} $line {u} line
     regsub -all {Ü} $line {Ue} line
+    regsub -all {Ú} $line {U} line
     regsub -all {ß} $line {ss} line
     regsub -all {&nbsp;} $line { } line
     regsub -all {−} $line {-} line
@@ -539,6 +543,7 @@ proc convertToSameFormat { line } {
     regsub {HATSUDEN \(ハツデン\）} $line {HATSUDEN} line
     regsub {Ponkotsu Factory \(ぽんこつファクトリー\)} $line {Ponkotsu Factory} line
     regsub {侍鳥 \(Samurai Dori\)} $line {Samurai Dori} line
+    regsub {Discovery: The Era of Voyage \(航海の時代\)} $line {Discovery: The Era of Voyage} line
     return $line
 }
 
