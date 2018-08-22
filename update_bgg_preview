@@ -7,6 +7,7 @@ set version 2017.04  ;# Bugfix: ignore all games before "geekpreview-header-cta"
 set version 2017.10  ;# add field for rating (not extracted from bgg yet)
 set version 2018.01  ;# extracted booth for Gencon 2018
 set version 2018.02  ;# renamed temporary html file, added more unicode chars
+set version 2018.03  ;# renamed more publishers and games without unicode
 
 # puts "Args: $argc $argv"
 
@@ -156,8 +157,10 @@ proc checkCsvVersion { file } {
         if { [string compare $line {Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG}] != 0 } {
             error "CSV-format does not match version $g_csvVersion: $line"
         }
-    } elseif { $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 } {
-        # v2017.0X
+    } elseif { ( $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 ) ||
+               ( $g_csvVersion >= 2018.01 && $g_csvVersion < 2018.10 ) } {
+        # v2017.1X
+        # v2018.0X
         # puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
         regsub -all {"} $line {} line  ;#"
         if { [string compare $line {Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG}] != 0 } {
@@ -223,6 +226,8 @@ proc convertUnicode { line } {
     regsub -all {’} $line {'} line
     regsub -all {\t+} $line {} line
     regsub -all {½} $line { 1/2} line
+    regsub -all {₂} $line {2} line
+    regsub -all {⁶} $line {6} line
     regsub -all {¡} $line {!} line
     regsub -all {°} $line {} line
     regsub -all {­} $line {} line
@@ -473,7 +478,7 @@ proc convertToSameFormat { line } {
     regsub {Bezier Games Inc.} $line {Bezier Games} line
     regsub {^Big Fun Games \(Board Game\)$} $line {Big Fun Games} line
     regsub {^Blue Cocker$} $line {Blue Cocker Games} line
-    regsub {Blam!} $line {BLAM !} line
+    regsub {BLAM !} $line {Blam!} line
     regsub {Blue Orange \(EU\)} $line {Blue Orange Games} line
     regsub {Board \& Dice} $line {Board\&Dice} line
     regsub {BOARD TO DEATH} $line {Board to Death} line
@@ -489,6 +494,7 @@ proc convertToSameFormat { line } {
     regsub {Hans im Glueck Verlag} $line {Hans im Glueck} line
     regsub {Hoplay} $line {HoPLAY} line
     regsub {Huch! \& friends} $line {HUCH! \& friends} line
+    regsub {ひとりじゃ、生きられない。\(I Cannot Live By Myself\)} $line {I Cannot Live By Myself} line
     regsub {Iello} $line {IELLO} line
     regsub {壬辰 \(Imjin Creative\)} $line {Imjin Creative} line
     regsub {Inside the Box Board Games LLP \(ITB\)} $line {Inside the Box} line
@@ -517,6 +523,7 @@ proc convertToSameFormat { line } {
     regsub {Play With Us Design \(玩聚設計\)} $line {Play With Us Design} line
     regsub {Plenluno \(プレンルーノ\)} $line {Plenluno} line
     regsub {^Poltergeist$} $line {Poltergeist Spiele} line
+    regsub {Ram Clear \(ラムクリア\)} $line {Ram Clear} line
     regsub {Ravensburger Spieleverlag GmbH} $line {Ravensburger Spieleverlag} line
     regsub {REDIMP GAMES} $line {RedImp Games} line
     regsub {Rolling Green Leaves Studio \(滾動綠葉文創工作室\)} $line {Rolling Green Leaves Studio} line
@@ -527,6 +534,8 @@ proc convertToSameFormat { line } {
     regsub {Spieltrieb GbR} $line {Spieltrieb} line
     regsub {ばねゲー部\(仮\) \(Spring Games Club\.temp\)} $line {Spring Games Club} line
     regsub {Surprised Stare Games Ltd} $line {Surprised Stare Games} line
+    regsub {するめデイズ \(Surume Days\)} $line {Surume Days} line
+    regsub {Talosil GAMES \(タルオシル\)} $line {Talosil GAMES} line
     regsub {The Game Master BV} $line {The Game Master} line
     regsub {2Plus Games} $line {TwoPlus Games} line
     regsub {Tiki Editions Inc.} $line {TIKI Editions Inc.} line
@@ -537,13 +546,18 @@ proc convertToSameFormat { line } {
     regsub {Yay! Games} $line {YAY Games} line
 
     # Spiele
-    regsub {萬貓的慶典} $line {Festival of Thousand Cats} line
     regsub {Captain Dice \(キャプテンダイス\)} $line {Captain Dice} line
-    regsub {TA‐KE} $line {TA-KE} line
+    regsub {Discovery: The Era of Voyage \(航海の時代\)} $line {Discovery: The Era of Voyage} line
+    regsub {萬貓的慶典} $line {Festival of Thousand Cats} line
+    regsub {くだものフレンズ \(Fruit Friends\)} $line {Fruit Friends} line
+    regsub {^Cangaço$} $line {Cangaco} line
     regsub {HATSUDEN \(ハツデン\）} $line {HATSUDEN} line
+    regsub {Helltoken: Remote Control Robot \(ヘルトウクン\)} $line {Helltoken: Remote Control Robot} line
+    regsub {カゲロウ \(Mayfly\)} $line {Mayfly} line
     regsub {Ponkotsu Factory \(ぽんこつファクトリー\)} $line {Ponkotsu Factory} line
     regsub {侍鳥 \(Samurai Dori\)} $line {Samurai Dori} line
-    regsub {Discovery: The Era of Voyage \(航海の時代\)} $line {Discovery: The Era of Voyage} line
+    regsub {キズナと螢の物語 \(Story of KIZUNA and "Luciola cruciata"\)} $line {Story of KIZUNA and Luciola cruciata} line
+    regsub {TA‐KE} $line {TA-KE} line
     return $line
 }
 
@@ -585,6 +599,7 @@ proc checkBoothBGG { line } {
             set booth [string trim "$hall-$number"]
         } else {
             regsub {, *} $number {/} number
+            regsub {—} $number {-} number
             set booth [string trim $number]
         }
         if { [string compare $g_booth ""] == 0 } {
