@@ -190,6 +190,7 @@ proc convertUnicode { line } {
     regsub -all {à} $line {a} line
     regsub -all {á} $line {a} line
     regsub -all {Ä} $line {Ae} line
+    regsub -all {ç} $line {c} line
     regsub -all {é} $line {e} line
     regsub -all {è} $line {e} line
     regsub -all {ê} $line {e} line
@@ -550,9 +551,9 @@ proc convertToSameFormat { line } {
     regsub {Discovery: The Era of Voyage \(航海の時代\)} $line {Discovery: The Era of Voyage} line
     regsub {萬貓的慶典} $line {Festival of Thousand Cats} line
     regsub {くだものフレンズ \(Fruit Friends\)} $line {Fruit Friends} line
-    regsub {^Cangaço$} $line {Cangaco} line
     regsub {HATSUDEN \(ハツデン\）} $line {HATSUDEN} line
     regsub {Helltoken: Remote Control Robot \(ヘルトウクン\)} $line {Helltoken: Remote Control Robot} line
+    regsub {京都エクスプローラー KYOTO EXPLORER} $line {Kyoto Explorer} line
     regsub {カゲロウ \(Mayfly\)} $line {Mayfly} line
     regsub {Ponkotsu Factory \(ぽんこつファクトリー\)} $line {Ponkotsu Factory} line
     regsub {侍鳥 \(Samurai Dori\)} $line {Samurai Dori} line
