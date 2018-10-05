@@ -486,6 +486,7 @@ proc convertToSameFormat { line } {
     regsub {Bushiroad South East Asia Pte. Ltd.} $line {Bushiroad} line
     regsub {Eigenverlag} $line {Self-Published} line
     regsub {Franjos Spieleverlag} $line {franjos Spieleverlag} line
+    regsub {FREAKY DESIGN \(フリーキーデザイン\)} $line {FREAKY DESIGN} line
     regsub {FunForge} $line {Funforge} line
     regsub {GALLERY OUCHI \(ギャラリーおうち\)} $line {GALLERY OUCHI} line
     regsub {Gigamic International Games} $line {Gigamic} line
@@ -548,6 +549,7 @@ proc convertToSameFormat { line } {
 
     # Spiele
     regsub {Captain Dice \(キャプテンダイス\)} $line {Captain Dice} line
+    regsub {アイドル発掘！Diggers \(Find Idol! Diggers\)} $line {Find Idol! Diggers} line
     regsub {Discovery: The Era of Voyage \(航海の時代\)} $line {Discovery: The Era of Voyage} line
     regsub {萬貓的慶典} $line {Festival of Thousand Cats} line
     regsub {くだものフレンズ \(Fruit Friends\)} $line {Fruit Friends} line
@@ -555,6 +557,7 @@ proc convertToSameFormat { line } {
     regsub {Helltoken: Remote Control Robot \(ヘルトウクン\)} $line {Helltoken: Remote Control Robot} line
     regsub {京都エクスプローラー KYOTO EXPLORER} $line {Kyoto Explorer} line
     regsub {カゲロウ \(Mayfly\)} $line {Mayfly} line
+    regsub {老師敬服 \(Master of Respect\)} $line {Master of Respect} line
     regsub {Ponkotsu Factory \(ぽんこつファクトリー\)} $line {Ponkotsu Factory} line
     regsub {侍鳥 \(Samurai Dori\)} $line {Samurai Dori} line
     regsub {キズナと螢の物語 \(Story of KIZUNA and "Luciola cruciata"\)} $line {Story of KIZUNA and Luciola cruciata} line
