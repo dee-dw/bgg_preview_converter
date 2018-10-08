@@ -8,6 +8,7 @@ set version 2017.10  ;# add field for rating (not extracted from bgg yet)
 set version 2018.01  ;# extracted booth for Gencon 2018
 set version 2018.02  ;# renamed temporary html file, added more unicode chars
 set version 2018.03  ;# renamed more publishers and games without unicode
+set version 2018.04  ;# support Unicode characters - finally!
 
 # puts "Args: $argc $argv"
 
@@ -89,8 +90,8 @@ proc readCsvEntry { line } {
         # v2017.0X
         # puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
         if { [regexp {^([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)$} $line all booth publisher game players duration language price prio remarks bgglink ] } {
-            set publisher [convertToSameFormat [string trim $publisher {"}]] ;#"
-            set game [convertToSameFormat [string trim $game {"}]] ;#"
+            set publisher [string trim $publisher {"}] ;#"
+            set game [string trim $game {"}] ;#"
             set entry [createEntry $publisher $game]
             set g_boothList($entry)     [string trim $booth {"}] ;#"
             set g_publisherList($entry) [string trim $publisher {"}] ;#"
@@ -117,8 +118,8 @@ proc readCsvEntry { line } {
         # v2018.0X
         # puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
         if { [regexp {^([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)$} $line all booth publisher game rating players duration language price prio remarks bgglink ] } {
-            set publisher [convertToSameFormat [string trim $publisher {"}]] ;#"
-            set game [convertToSameFormat [string trim $game {"}]] ;#"
+            set publisher [string trim $publisher {"}] ;#"
+            set game [string trim $game {"}] ;#"
             set entry [createEntry $publisher $game]
             set g_boothList($entry)     [string trim $booth {"}] ;#"
             set g_publisherList($entry) [string trim $publisher {"}] ;#"
@@ -185,52 +186,14 @@ proc readCsv { filename } {
 proc convertUnicode { line } {
     regsub -all {,} $line {} line
     regsub -all {&amp;} $line {\&} line
-    regsub -all {ä} $line {ae} line
-    regsub -all {ä} $line {ae} line
-    regsub -all {à} $line {a} line
-    regsub -all {á} $line {a} line
-    regsub -all {Ä} $line {Ae} line
-    regsub -all {ç} $line {c} line
-    regsub -all {é} $line {e} line
-    regsub -all {è} $line {e} line
-    regsub -all {ê} $line {e} line
-    regsub -all {È} $line {E} line
-    regsub -all {É} $line {E} line
-    regsub -all {í} $line {i} line
-    regsub -all {ì} $line {i} line
-    regsub -all {í} $line {i} line
-    regsub -all {ï} $line {i} line
-    regsub -all {Í} $line {I} line
-    regsub -all {ö} $line {oe} line
-    regsub -all {ø} $line {o} line
-    regsub -all {ō} $line {o} line
-    regsub -all {ó} $line {o} line
-    regsub -all {ó} $line {o} line
-    regsub -all {ô} $line {o} line
-    regsub -all {Ö} $line {Oe} line
-    regsub -all {Ō} $line {O} line
-    regsub -all {ñ} $line {n} line
-    regsub -all {ü} $line {ue} line
-    regsub -all {ù} $line {u} line
-    regsub -all {ú} $line {u} line
-    regsub -all {Ü} $line {Ue} line
-    regsub -all {Ú} $line {U} line
-    regsub -all {ß} $line {ss} line
     regsub -all {&nbsp;} $line { } line
     regsub -all {−} $line {-} line
+    regsub -all {–} $line {-} line
     regsub -all {&minus;} $line {-} line
     regsub -all {&#039;} $line {} line
-    regsub -all {\?\?\?} $line {Fragezeichen} line
-    regsub -all {\?} $line {} line
-    regsub -all {–} $line {-} line
     regsub -all {´} $line {'} line
     regsub -all {’} $line {'} line
     regsub -all {\t+} $line {} line
-    regsub -all {½} $line { 1/2} line
-    regsub -all {₂} $line {2} line
-    regsub -all {⁶} $line {6} line
-    regsub -all {¡} $line {!} line
-    regsub -all {°} $line {} line
     regsub -all {­} $line {} line
     return $line
 }
@@ -443,7 +406,6 @@ proc storeGame { } {
     if { [info exists g_publisher] && [info exists g_game] } {
         set entry [createEntry $g_publisher $g_game]
         incr g_counter
-        # puts "> $g_counter $entry"
         if { ![info exists g_gameList($entry)] } {
             storeAsNewGame $entry
         } else {
@@ -459,112 +421,6 @@ proc storeGame { } {
     }
 }
 
-proc convertToSameFormat { line } {
-    
-    # Publisher
-    regsub {Abacusspiele} $line {ABACUSSPIELE} line
-    regsub {Abbagames} $line {ABBA Games} line
-    regsub {ADC Blackfire Entertainment GmbH} $line {ADC Blackfire} line
-    regsub {A-games \(Board Game Publisher\)} $line {A-games} line
-    regsub {A-games \(Board Game\)} $line {A-games} line
-    regsub {aoimachi \(青い街\)} $line {aoimachi} line
-    regsub {^Alderac Entertainment Group \(AEG\)$} $line {AEG} line
-    regsub {^Alea$} $line {alea} line
-    regsub {AMIGO Spiel \+ Freizeit GmbH} $line {AMIGO} line
-    regsub {Amigo Spiel \+ Freizeit GmbH} $line {AMIGO} line
-    regsub {analog lunchbox \(アナログランチボックス\)} $line {analog lunchbox} line
-    regsub {Apauling games} $line {apauling games} line
-    regsub {^Asmodee$} $line {Asmodee Deutschland} line
-    regsub {Backspindle Games Ltd.} $line {Backspindle Games} line
-    regsub {Bezier Games Inc.} $line {Bezier Games} line
-    regsub {^Big Fun Games \(Board Game\)$} $line {Big Fun Games} line
-    regsub {^Blue Cocker$} $line {Blue Cocker Games} line
-    regsub {BLAM !} $line {Blam!} line
-    regsub {Blue Orange \(EU\)} $line {Blue Orange Games} line
-    regsub {Board \& Dice} $line {Board\&Dice} line
-    regsub {BOARD TO DEATH} $line {Board to Death} line
-    regsub {Bushiroad South East Asia Pte. Ltd.} $line {Bushiroad} line
-    regsub {Eigenverlag} $line {Self-Published} line
-    regsub {Franjos Spieleverlag} $line {franjos Spieleverlag} line
-    regsub {FREAKY DESIGN \(フリーキーデザイン\)} $line {FREAKY DESIGN} line
-    regsub {FunForge} $line {Funforge} line
-    regsub {GALLERY OUCHI \(ギャラリーおうち\)} $line {GALLERY OUCHI} line
-    regsub {Gigamic International Games} $line {Gigamic} line
-    regsub {Haba-Habermaass GmbH} $line {HABA} line
-    regsub {HABA - Habermaass GmbH} $line {HABA} line
-    regsub {Hans im Glueck Verlags-GmbH} $line {Hans im Glueck} line
-    regsub {Hans im Glueck Verlag} $line {Hans im Glueck} line
-    regsub {Hoplay} $line {HoPLAY} line
-    regsub {Huch! \& friends} $line {HUCH! \& friends} line
-    regsub {ひとりじゃ、生きられない。\(I Cannot Live By Myself\)} $line {I Cannot Live By Myself} line
-    regsub {Iello} $line {IELLO} line
-    regsub {壬辰 \(Imjin Creative\)} $line {Imjin Creative} line
-    regsub {Inside the Box Board Games LLP \(ITB\)} $line {Inside the Box} line
-    regsub {JaponBrand} $line {Japon Brand} line
-    regsub {JUGAME STUDIO \(ジュゲムスタジオ\)} $line {JUGAME STUDIO} line
-    regsub {Kakinotane Firm \(柿の種商会\)} $line {Kakinotane Firm} line
-    regsub {Korea Boardgames co. Ltd.} $line {Korea Boardgames} line
-    regsub {^Kosmos$} $line {KOSMOS} line
-    regsub {^Lautapelit$} $line {Lautapelit.fi} line
-    regsub {Lifestyle Boardgames Ltd} $line {Lifestyle Boardgames} line
-    regsub {Logis} $line {LOGIS} line
-    regsub {Mage Company} $line {MAGE Company} line
-    regsub {Massif Games LLC} $line {Massif Games} line
-    regsub {Mayfair Games Inc.} $line {Mayfair Games} line
-    regsub {^Morning$} $line {Morning Players} line
-    regsub {Morning Players S.A.S.} $line {Morning Players} line
-    regsub {moses. Verlag GmbH} $line {moses Verlag}
-    regsub {Mueller-Maetzig Spiele Verlag} $line {Mueller-Maetzig Spiele} line
-    regsub {新ボードゲーム党 \(New Board Game Party\)} $line {New Board Game Party} line
-    regsub {nikamundus Vertriebs GmbH} $line {nikamundus} line
-    regsub {nikamundus Verlag} $line {nikamundus} line
-    regsub {NSKN Legendary Games \(NSKN Games\)} $line {NSKN Games} line
-    regsub {Oesterreichisches Spiele Museum e.V.} $line {Oesterreichisches Spiele Museum} line
-    regsub {Ostia Spiele} $line {OSTIA Spiele} line
-    regsub {Phalanx} $line {PHALANX} line
-    regsub {Play With Us Design \(玩聚設計\)} $line {Play With Us Design} line
-    regsub {Plenluno \(プレンルーノ\)} $line {Plenluno} line
-    regsub {^Poltergeist$} $line {Poltergeist Spiele} line
-    regsub {Ram Clear \(ラムクリア\)} $line {Ram Clear} line
-    regsub {Ravensburger Spieleverlag GmbH} $line {Ravensburger Spieleverlag} line
-    regsub {REDIMP GAMES} $line {RedImp Games} line
-    regsub {Rolling Green Leaves Studio \(滾動綠葉文創工作室\)} $line {Rolling Green Leaves Studio} line
-    regsub {Schmidt Spiele GmbH} $line {Schmidt Spiele} line
-    regsub {\(Self-Published\)} $line {Self-Published} line
-    regsub {しのうじょう \(Shinojo\)} $line {Shinojo} line
-    regsub {Sit down} $line {Sit Down!} line
-    regsub {Spieltrieb GbR} $line {Spieltrieb} line
-    regsub {ばねゲー部\(仮\) \(Spring Games Club\.temp\)} $line {Spring Games Club} line
-    regsub {Surprised Stare Games Ltd} $line {Surprised Stare Games} line
-    regsub {するめデイズ \(Surume Days\)} $line {Surume Days} line
-    regsub {Talosil GAMES \(タルオシル\)} $line {Talosil GAMES} line
-    regsub {The Game Master BV} $line {The Game Master} line
-    regsub {2Plus Games} $line {TwoPlus Games} line
-    regsub {Tiki Editions Inc.} $line {TIKI Editions Inc.} line
-    regsub {トーホクウィステリア \(Tohoku Wisteria\)} $line {Tohoku Wisteria} line
-    regsub {Truant Verlag} $line {Truant Spiele} line
-    regsub {Whats Your Game} $line {What's Your Game} line
-    regsub {^WizKids$} $line {WizKids Games} line
-    regsub {Yay! Games} $line {YAY Games} line
-
-    # Spiele
-    regsub {Captain Dice \(キャプテンダイス\)} $line {Captain Dice} line
-    regsub {アイドル発掘！Diggers \(Find Idol! Diggers\)} $line {Find Idol! Diggers} line
-    regsub {Discovery: The Era of Voyage \(航海の時代\)} $line {Discovery: The Era of Voyage} line
-    regsub {萬貓的慶典} $line {Festival of Thousand Cats} line
-    regsub {くだものフレンズ \(Fruit Friends\)} $line {Fruit Friends} line
-    regsub {HATSUDEN \(ハツデン\）} $line {HATSUDEN} line
-    regsub {Helltoken: Remote Control Robot \(ヘルトウクン\)} $line {Helltoken: Remote Control Robot} line
-    regsub {京都エクスプローラー KYOTO EXPLORER} $line {Kyoto Explorer} line
-    regsub {カゲロウ \(Mayfly\)} $line {Mayfly} line
-    regsub {老師敬服 \(Master of Respect\)} $line {Master of Respect} line
-    regsub {Ponkotsu Factory \(ぽんこつファクトリー\)} $line {Ponkotsu Factory} line
-    regsub {侍鳥 \(Samurai Dori\)} $line {Samurai Dori} line
-    regsub {キズナと螢の物語 \(Story of KIZUNA and "Luciola cruciata"\)} $line {Story of KIZUNA and Luciola cruciata} line
-    regsub {TA‐KE} $line {TA-KE} line
-    return $line
-}
-
 proc checkPublisherBGG { line } {
     global g_publisher
     global g_booth
@@ -573,18 +429,12 @@ proc checkPublisherBGG { line } {
     if { [regexp {<a ng-href=./boardgamepublisher/[^>]*>([^<]*)</a>} $line all publisher] } {
         set publisher [string trim $publisher]
         set publisher [convertUnicode $publisher]
-        set publisher [convertToSameFormat $publisher]
-        # puts "> $publisher"
         
         # Save previous stored game!
         storeGame
         
         set g_publisher $publisher
         set g_publisherJustSet 1
-        if { ![string is ascii $g_publisher] } {
-            error "Publisher name not in ascii: $g_publisher"
-        }
-        # Clear Booth number if none is given for this publisher
         set g_booth {}
     }
     if { [info exists g_publisher] &&
@@ -608,7 +458,6 @@ proc checkBoothBGG { line } {
         }
         if { [string compare $g_booth ""] == 0 } {
             set g_booth $booth
-            # puts "> $g_booth"
         } elseif { [string compare $g_booth $booth] != 0 } {
             # Already a booth set. This should not happen.
             error "Second booth set: $g_booth -> $booth"
@@ -630,7 +479,6 @@ proc checkGameTitleBGG { line } {
            [regexp {<a ng-href="/boardgameexpansion/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ) } {
         set game [string trim $game]
         set game [convertUnicode $game]
-        set game [convertToSameFormat $game]
 
         # Save previous stored game!
         if { !$g_publisherJustSet } {
@@ -639,16 +487,11 @@ proc checkGameTitleBGG { line } {
         set g_publisherJustSet 0
 
         set g_game $game
-        if { ![string is ascii $g_game] } {
-            error "Game name not in ascii: $g_game"
-        }
-        # puts "> $g_game"
         if { [string first "https://boardgamegeek.com" $link] == 0 } {
             set g_bgglink "$link"
         } else {
             set g_bgglink "https://boardgamegeek.com$link"
         }
-        # puts "> $g_bgglink"
         
         set g_players {}
         set g_playtime {}
@@ -667,10 +510,6 @@ proc checkPriceBGG { line } {
     if { [regexp {<strong ng-if=.item.msrp.*>([^<]*)</strong>} $line all price] } {
         set g_price [string trim $price]
         set g_price [convertUnicode $g_price]
-        # Euro as default, otherwise Dollar or Pound
-        #regsub {EUR } $g_price {} g_price
-        # ignore 00 cent
-        #regsub {\.00$} $g_price {} g_price
     }
 }
 
