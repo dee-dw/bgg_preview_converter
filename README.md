@@ -9,7 +9,7 @@ TCL Converter from the BoardGameGeek condensed preview list to CSV
 ## Initial Usage
 1. Go to a BoardGameGeek preview list, e.g. https://boardgamegeek.com/geekpreview/6/spiel-18-preview
 2. Switch to "Condensed View", e.g. https://boardgamegeek.com/geekpreview/6/spiel-18-preview?viewstyle=condensed
-3. Optional: Filter your selection by clicking "View My Picks"
+3. Optional: Filter your selection, e.g. Must Have, Interested and Undecided
 4. Scroll down and click "Show all"
 5. Save the page as full html, e.g. as "bgg_spiel18.html", in the folder of the unzipped BGG Preview Converter
 6. Open a terminal and navigate to the folder where you stored the the html and the converter
