@@ -9,41 +9,59 @@ set version 2018.01  ;# extracted booth for Gencon 2018
 set version 2018.02  ;# renamed temporary html file, added more unicode chars
 set version 2018.03  ;# renamed more publishers and games without unicode
 set version 2018.04  ;# support Unicode characters - finally!
-
-# puts "Args: $argc $argv"
-
-if { $argc < 1 } {
-    puts "Error: No files given as arguments!"
-    puts "Expected: [file nativename $argv0] \[datei.csv\] codensed_view.html > datei.csv"
-    exit 1
-}
+set version 2019.01  ;# support new html format for Gencon 2019
 
 # search "old" csv file (as base) and new html files
 set csvfile ""
 set htmlfile ""
+set showhelp 0
+set debug 0
 foreach argument $argv {
     if { [regexp {.csv$} $argument] } {
         if { [string compare $csvfile ""] == 0 } {
             set csvfile $argument
         } else {
             puts "Error: Second csv file given!"
-            exit 1
+            set showhelp 1
         }
     } elseif { [regexp {.html$} $argument] } {
         if { [string compare $htmlfile ""] == 0 } {
             set htmlfile $argument
         } else {
             puts "Error: Second html file given!"
-            exit 1
+            set showhelp 1
         }
+    } elseif { [string compare $argument "--help"] == 0 } {
+        set showhelp 1
+    } elseif { [string compare $argument "--debug"] == 0 } {
+        set debug 1
     } elseif { [string compare $argument ""] != 0 } {
         puts "Error: Unknown file: $argument"
-        exit 1
+        set showhelp 1
     }
 }
 
-#puts "HTML: $htmlfile"
-#puts "CSV: $csvfile"
+if { !$showhelp && [string compare $htmlfile ""] == 0 } {
+    puts "Error: No valid html file given as argument!"
+    set showhelp 1
+}
+
+proc putsDebug { line } {
+    global debug
+    if { $debug } {
+        puts "<DBG> $line"
+    }
+}
+
+putsDebug "Args: $argc $argv"
+putsDebug "HTML: $htmlfile"
+putsDebug "CSV: $csvfile"
+
+if { $showhelp } {
+    puts "Expected: [file nativename $argv0] \[--debug\] \[datei.csv\] codensed_view.html \[> datei.csv\]"
+    puts "For help: [file nativename $argv0] --help"
+    exit 1
+}
 
 # -----------------------------------------------
 
@@ -54,14 +72,27 @@ regsub {\.html$} $htmlfile "_$date.html" newfilename
 set infile [open $htmlfile r]
 set outfile [open $newfilename w]
 while { [gets $infile line] >= 0 } {
+    # Remove all unnecessary white spaces
+    regsub -all {>\s+} $line {>} line
+    regsub -all {\s+<} $line {<} line
+
+    # Remove tabs and white spaces around links
     regsub -all {(<a[^>]*>)\s*([^\t]*)\s*(</a>)} $line {\1\2\3} line
-    regsub -all {(<strong[^>]*class="c-green-600">)\s*([^\t]*)\s*(</strong>)} $line {\1\2\3} line
+
+    # Remove tabs and white spaces around price tag
+    regsub -all {(<strong ng-if="[^"]*itemctrl.item.showprice[^>]*">)\s*([^\t]*)\s*(</strong>)} $line {\1\2\3} line ;#"
+
+    # Remove tabs and white spaces around availability tag
     regsub -all {(<span ng-if="item.pretty_availability_status">)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line
-    regsub -all {(<button ng-if="ctrl.userinfo.priority[^>]*>)\s*([^\t]*)\s*} $line {\1\2} line ;#"
-    regsub -all {(<div class="col-xs-2">)\s*([^\t]*)\s*(</div>)} $line {\1\2\3} line
-    regsub -all {(<span ng-if="\:\:item\.geekitem\.item[^"]*">)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line ;#"
-    regsub -all {(Expansion for: )\t*} $line {\1} line
-    regsub -all "\t" $line "\n" line
+    
+    # regsub -all {(<div class="col-xs-2">)\s*([^\t]*)\s*(</div>)} $line {\1\2\3} line
+    
+    # Comment lines are used as separators as well
+    regsub -all "<!---->" $line "\n" line
+
+    # Tabs are used mostly as separator between entries
+    # regsub -all "\t" $line "\n" line
+
     puts $outfile $line
 }
 close $outfile
@@ -86,36 +117,8 @@ proc readCsvEntry { line } {
     global g_bggLinkList
     global g_inCsvOnly
 
-    if { $g_csvVersion >= 2017.01 && $g_csvVersion < 2017.10 } {
-        # v2017.0X
-        # puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
-        if { [regexp {^([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)$} $line all booth publisher game players duration language price prio remarks bgglink ] } {
-            set publisher [string trim $publisher {"}] ;#"
-            set game [string trim $game {"}] ;#"
-            set entry [createEntry $publisher $game]
-            set g_boothList($entry)     [string trim $booth {"}] ;#"
-            set g_publisherList($entry) [string trim $publisher {"}] ;#"
-            set g_gameList($entry)      [string trim $game {"}] ;#"
-            set g_ratingList($entry)    {}
-            set g_playersList($entry)   [string trim $players {"}] ;#"
-            set g_durationList($entry)  [string trim $duration {"}] ;#"
-            set g_languageList($entry)  [split [string trim $language {"}] {/}] ;#"
-            set g_priceList($entry)     [string trim $price {"}] ;#"
-            set g_prioList($entry)      [string trim $prio {"}] ;#"
-            set g_remarkList($entry)    [string trim $remarks {"}] ;#"
-            set g_bggLinkList($entry)   [string trim $bgglink {"}] ;#"
-            set g_inCsvOnly($entry)     1
-            if { [string first $g_remarkList($entry) "BGG"] >= 0 } {
-                # entries with BGG as comment are manually added
-                set g_inCsvOnly($entry)     0
-            }
-        } else {
-            error "Wrong CSV line: $line"
-        }
-    } elseif { ( $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 ) ||
-               ( $g_csvVersion >= 2018.01 && $g_csvVersion < 2018.10 ) } {
-        # v2017.1X
-        # v2018.0X
+    if { ( $g_csvVersion >= 2019.01 && $g_csvVersion < 2019.10 ) } {
+        # v2019.0X
         # puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
         if { [regexp {^([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)$} $line all booth publisher game rating players duration language price prio remarks bgglink ] } {
             set publisher [string trim $publisher {"}] ;#"
@@ -151,17 +154,8 @@ proc checkCsvVersion { file } {
     regexp {^"?v([^",]*)} $line all g_csvVersion
     # puts "Version: $g_csvVersion"
     gets $file line
-    if { $g_csvVersion >= 2017.01 && $g_csvVersion < 2017.10 } {
-        # v2017.0X
-        # puts "Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG"
-        regsub -all {"} $line {} line  ;#"
-        if { [string compare $line {Booth,Publisher,Game,Players,Dur,Lang,Price,Prio,Remarks,BGG}] != 0 } {
-            error "CSV-format does not match version $g_csvVersion: $line"
-        }
-    } elseif { ( $g_csvVersion >= 2017.10 && $g_csvVersion < 2017.20 ) ||
-               ( $g_csvVersion >= 2018.01 && $g_csvVersion < 2018.10 ) } {
-        # v2017.1X
-        # v2018.0X
+    if { ( $g_csvVersion >= 2019.01 && $g_csvVersion < 2019.10 ) } {
+        # v2019.0X
         # puts "Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG"
         regsub -all {"} $line {} line  ;#"
         if { [string compare $line {Booth,Publisher,Game,Rating,Players,Dur,Lang,Price,Prio,Remarks,BGG}] != 0 } {
@@ -426,7 +420,7 @@ proc checkPublisherBGG { line } {
     global g_booth
     global g_publisherJustSet
 
-    if { [regexp {<a ng-href=./boardgamepublisher/[^>]*>([^<]*)</a>} $line all publisher] } {
+    if { [regexp {<a ng-href=./boardgamepublisher/[^>]*>([^<]*)</a>} $line all publisher] } { ;#"
         set publisher [string trim $publisher]
         set publisher [convertUnicode $publisher]
         
@@ -436,6 +430,7 @@ proc checkPublisherBGG { line } {
         set g_publisher $publisher
         set g_publisherJustSet 1
         set g_booth {}
+        putsDebug "Publisher: $g_publisher"
     }
     if { [info exists g_publisher] &&
          [string compare $g_publisher "Self-Published"] == 0 } {
@@ -452,12 +447,14 @@ proc checkBoothBGG { line } {
         if { [info exists hall] } {
             set booth [string trim "$hall-$number"]
         } else {
-            regsub {, *} $number {/} number
-            regsub {—} $number {-} number
+            regsub -all {, *} $number {/} number
+            regsub -all {—} $number {-} number
+            regsub -all {&amp;} $number {/} number
             set booth [string trim $number]
         }
         if { [string compare $g_booth ""] == 0 } {
             set g_booth $booth
+            putsDebug "Booth: $g_booth"
         } elseif { [string compare $g_booth $booth] != 0 } {
             # Already a booth set. This should not happen.
             error "Second booth set: $g_booth -> $booth"
@@ -492,6 +489,7 @@ proc checkGameTitleBGG { line } {
         } else {
             set g_bgglink "https://boardgamegeek.com$link"
         }
+        putsDebug "Game: $g_game"
         
         set g_players {}
         set g_playtime {}
@@ -504,12 +502,14 @@ proc checkGameTitleBGG { line } {
 proc checkPriceBGG { line } {
     global g_price
 
-    if { [regexp {<span ng-if="item.pretty_availability_status">([^<]*)</span>} $line all price] } {
+    if { [regexp {<span ng-if="itemctrl.item.pretty_availability_status">([^<]*)</span>} $line all price] } {
         set g_price [string trim $price]
+        putsDebug "Avail: $g_price"
     }
-    if { [regexp {<strong ng-if=.item.msrp.*>([^<]*)</strong>} $line all price] } {
+    if { [regexp {<strong ng-if=.*itemctrl.item.showprice[^>]*>([^<]*)</strong>} $line all price] } {
         set g_price [string trim $price]
         set g_price [convertUnicode $g_price]
+        putsDebug "Price: $g_price"
     }
 }
 
@@ -519,25 +519,25 @@ proc checkPriorityBGG { line } {
         set prio [string trim $prio]
         if { [string compare "Remove Priority" $prio] != 0 } {
             set g_prio $prio
+            putsDebug "Prio: $g_prio"
         }
     }
 }
 
 proc readHtmlBGG { filename } {
-    # Syntax:
-    # <a.*href="https://boardgamegeek.com/boardgamepublisher/.*">Some Name</a> 
-    # <span ng-if="parentitem.location">Location: Hall 7: K120</span>
-    # <a.*href="https://boardgamegeek.com/boardgame/.*">Some Name</a>
-    # <div class="col-xs-2">Hall 3: E114 </div>
-    # <span ng-if="item.pretty_availability_status">For Sale</span>
-    # <strong ng-if="item.msrp.*>Price</strong>
-    # <button ng-if="ctrl.userinfo.priority.*>Status<
+    # Syntax 2019:
+    # <a.*href="https://boardgamegeek.com/boardgamepublisher/.*">XXXXXX</a> 
+    # <span ng-if="parentitem.location">Location: XXXXXX</span>
+    # <a.*href="https://boardgamegeek.com/boardgame/.*">XXXXXX</a>
+    # <span ng-if="item.pretty_availability_status">XXXXXX</span>
+    # <strong ng-if=".*itemctrl.item.showprice*">XXXXXX</strong>
+    # <button ng-if="ctrl.userinfo.priority.*>XXXXXX<.*</button>
 
     set gameListStarted 0
     set file [open $filename r]
     while { [gets $file line] >= 0 } {
-        # puts $line
-        if { [regexp {<div class="geekpreview-header-cta">} $line] } {
+        # putsDebug $line
+        if { [regexp {<div class="geekpreview-header-cta.*">} $line] } {
             set gameListStarted 1
         }
         if { $gameListStarted } {
@@ -616,4 +616,6 @@ readHtmlBGG $htmlfile
 storeGame
 
 # print all entries as csv
-printEntries
+if { !$debug } {
+    printEntries
+}
