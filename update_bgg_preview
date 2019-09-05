@@ -10,6 +10,7 @@ set version 2018.02  ;# renamed temporary html file, added more unicode chars
 set version 2018.03  ;# renamed more publishers and games without unicode
 set version 2018.04  ;# support Unicode characters - finally!
 set version 2019.01  ;# support new html format for Gencon 2019
+set version 2019.02  ;# bugfix for new html format
 
 # search "old" csv file (as base) and new html files
 set csvfile ""
@@ -72,26 +73,29 @@ regsub {\.html$} $htmlfile "_$date.html" newfilename
 set infile [open $htmlfile r]
 set outfile [open $newfilename w]
 while { [gets $infile line] >= 0 } {
-    # Remove all unnecessary white spaces
-    regsub -all {>\s+} $line {>} line
-    regsub -all {\s+<} $line {<} line
-
     # Remove tabs and white spaces around links
     regsub -all {(<a[^>]*>)\s*([^\t]*)\s*(</a>)} $line {\1\2\3} line
 
     # Remove tabs and white spaces around price tag
-    regsub -all {(<strong ng-if="[^"]*itemctrl.item.showprice[^>]*">)\s*([^\t]*)\s*(</strong>)} $line {\1\2\3} line ;#"
+    regsub -all {(<strong ng-if="[^"]*itemctrl.item.showprice[^>]*>)\s*([^\t]*)\s*(</strong>)} $line {\1\2\3} line ;#"
 
     # Remove tabs and white spaces around availability tag
-    regsub -all {(<span ng-if="item.pretty_availability_status">)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line
-    
-    # regsub -all {(<div class="col-xs-2">)\s*([^\t]*)\s*(</div>)} $line {\1\2\3} line
-    
+    regsub -all {(<span ng-if="itemctrl.item.pretty_availability_status"[^>]*>)\s*([^\t]*)\s*(</span>)} $line {\1\2\3} line
+
+    # Remove tabs and white spaces around priority tag
+    regsub -all {(<button ng-if="ctrl.userinfo.priority[^>]*">)\s*([^\t]*)\s*(<)} $line {\1\2\3} line
+
+    # Tabs are used mostly as separator between entries
+    regsub -all "\t" $line "\n" line
+
     # Comment lines are used as separators as well
     regsub -all "<!---->" $line "\n" line
 
-    # Tabs are used mostly as separator between entries
-    # regsub -all "\t" $line "\n" line
+    # regsub -all {(<div class="col-xs-2">)\s*([^\t]*)\s*(</div>)} $line {\1\2\3} line
+
+    # Remove all unnecessary white spaces
+    #regsub -all {>\s+} $line {>} line
+    #regsub -all {\s+<} $line {<} line
 
     puts $outfile $line
 }
@@ -420,7 +424,7 @@ proc checkPublisherBGG { line } {
     global g_booth
     global g_publisherJustSet
 
-    if { [regexp {<a ng-href=./boardgamepublisher/[^>]*>([^<]*)</a>} $line all publisher] } { ;#"
+    if { [regexp {<a ng-href="/boardgamepublisher/[^"]*"[^>]*>\s*([^<]*)\s*</a>} $line all publisher] } { ;#"
         set publisher [string trim $publisher]
         set publisher [convertUnicode $publisher]
         
@@ -442,8 +446,8 @@ proc checkPublisherBGG { line } {
 
 proc checkBoothBGG { line } {
     global g_booth
-    if { [regexp {<span ng-if="parentitem.location">Location: Hall ([0-9]+): ([A-Z0-9]+)</span>} $line all hall number] ||
-    [regexp {<span ng-if="parentitem.location">Location: ([^<]*)</span>} $line all number] } {
+    if { [regexp {<span ng-if="parentitem.location"[^>]*>Location: Hall ([0-9]+): ([A-Z0-9]+)</span>} $line all hall number] ||
+    [regexp {<span ng-if="parentitem.location"[^>]*>Location: ([^<]*)</span>} $line all number] } {
         if { [info exists hall] } {
             set booth [string trim "$hall-$number"]
         } else {
@@ -472,8 +476,8 @@ proc checkGameTitleBGG { line } {
     global g_language
     global g_publisherJustSet
 
-    if { ( [regexp {<a ng-href="/boardgame/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ||
-           [regexp {<a ng-href="/boardgameexpansion/[^"]*" href="([^"]*)" *>([^<]*)</a>} $line all link game] ) } {
+    if { ( [regexp {<a ng-href="(/boardgame/[^"]*)"[^>]*>\s*([^<]*)\s*</a>} $line all link game] ||
+           [regexp {<a ng-href="(/boardgameexpansion/[^"]*)"[^>]*>\s*([^<]*)\s*</a>} $line all link game] ) } {
         set game [string trim $game]
         set game [convertUnicode $game]
 
@@ -502,7 +506,7 @@ proc checkGameTitleBGG { line } {
 proc checkPriceBGG { line } {
     global g_price
 
-    if { [regexp {<span ng-if="itemctrl.item.pretty_availability_status">([^<]*)</span>} $line all price] } {
+    if { [regexp {<span ng-if="itemctrl.item.pretty_availability_status[^>]*">([^<]*)</span>} $line all price] } {
         set g_price [string trim $price]
         putsDebug "Avail: $g_price"
     }
@@ -515,7 +519,7 @@ proc checkPriceBGG { line } {
 
 proc checkPriorityBGG { line } {
     global g_prio
-    if { [regexp {<button ng-if=.ctrl.userinfo.priority[^>]*>([^<]*)<} $line all prio] } {
+    if { [regexp {<button ng-if="ctrl.userinfo.priority[^>]*">([^<]*)<} $line all prio] } {
         set prio [string trim $prio]
         if { [string compare "Remove Priority" $prio] != 0 } {
             set g_prio $prio
